@@ -5,8 +5,13 @@ import SwiftUI
 final class RecipeStore: ObservableObject {
     @Published var recipes: [Recipe] = []
     @Published var directory: URL
+    @Published var syncStatus: String = ""
+    @Published var isSyncing = false
 
     private var watcher: FolderWatcher?
+    private var syncTimer: Timer?
+
+    var canSync: Bool { GitSync.isRepo(directory) }
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "libraryPath")
@@ -16,6 +21,8 @@ final class RecipeStore: ObservableObject {
         ensureDirectory()
         reload()
         startWatching()
+        syncNow()
+        startSyncTimer()
     }
 
     func setDirectory(_ url: URL) {
@@ -24,6 +31,29 @@ final class RecipeStore: ObservableObject {
         ensureDirectory()
         reload()
         startWatching()
+        syncNow()
+        startSyncTimer()
+    }
+
+    // Commit/pull/push in the background, then refresh the list.
+    func syncNow() {
+        guard canSync, !isSyncing else { return }
+        isSyncing = true
+        let dir = directory
+        Task {
+            let status = await Task.detached { GitSync.sync(dir) }.value
+            self.syncStatus = status
+            self.isSyncing = false
+            self.reload()
+        }
+    }
+
+    private func startSyncTimer() {
+        syncTimer?.invalidate()
+        guard canSync else { return }
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 90, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.syncNow() }
+        }
     }
 
     func reload() {

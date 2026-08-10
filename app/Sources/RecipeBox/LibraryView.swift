@@ -275,19 +275,38 @@ struct LibraryView: View {
         KeyHintBar(
             [("↑↓", "navigate"), ("↵", "open"), ("/", "search")],
             trailing: AnyView(
-                Button {
-                    chooseFolder()
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "folder")
-                        Text("\(store.directory.lastPathComponent) · \(store.recipes.count) recipes")
+                HStack(spacing: 14) {
+                    if store.canSync {
+                        Button { store.syncNow() } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text(store.isSyncing ? "Syncing…"
+                                     : (store.syncStatus.isEmpty ? "Sync" : store.syncStatus))
+                            }
+                            .font(.system(size: 12))
+                            .foregroundStyle(syncColor)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(store.isSyncing)
                     }
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.faint)
+                    Button { chooseFolder() } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "folder")
+                            Text("\(store.directory.lastPathComponent) · \(store.recipes.count) recipes")
+                        }
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.faint)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             )
         )
+    }
+
+    private var syncColor: Color {
+        let s = store.syncStatus
+        if s.contains("conflict") || s.contains("issue") { return Theme.amber }
+        return Theme.faint
     }
 
     // MARK: keyboard

@@ -63,9 +63,26 @@ Regenerate the icon with `./scripts/make-icon.sh` (renders from `render_icon.swi
 - **Share** — the Share button (or `s`) in Cook Mode opens the native macOS share
   sheet for the recipe's `.md` file (AirDrop / Messages / Mail). The recipient gets
   a plain-text-readable file they can drop into their own library.
+- **Recipe sync** — if the library folder is a git clone of the shared private
+  repo, the app commits/pulls/pushes automatically (on launch + every 90s + a
+  manual Sync button). Two-way sharing with no server; auth uses your own git
+  login. Conflicts (same recipe edited on both Macs) are surfaced, not clobbered.
+- **Auto-update** — on launch the app checks the public repo's latest GitHub
+  Release; if newer, a banner offers "Install & relaunch" (downloads, swaps itself
+  in, clears Gatekeeper, relaunches). Also under the app menu → Check for Updates.
 - **Keep-awake** — the display won't sleep while a recipe is open.
 - **Folder watching (FSEvents)** — adds, removes, AND in-place edits to recipe
   files refresh the app live.
+
+## Shipping an update
+
+```sh
+cd app
+./scripts/release.sh 0.1.2      # bumps version, builds, zips, publishes a GitHub Release
+```
+
+Installed apps see it on next launch and offer to self-install. No manual reinstall,
+no server. Recipes live in a separate **private** repo, shared with collaborators.
 
 ## Source layout
 
