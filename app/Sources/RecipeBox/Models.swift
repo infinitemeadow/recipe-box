@@ -7,6 +7,12 @@ struct Ingredient: Hashable {
     var raw: String         // original text, used when nothing parses
 }
 
+struct Comment: Hashable {
+    var author: String?
+    var date: String?
+    var text: String
+}
+
 struct Recipe: Identifiable, Hashable {
     var id: URL { fileURL }
     let fileURL: URL
@@ -22,6 +28,7 @@ struct Recipe: Identifiable, Hashable {
     var ingredients: [Ingredient]
     var steps: [String]
     var notes: String?
+    var comments: [Comment]
 
     // Recipes keep native units; the dominant system decides the convert target.
     var dominantSystem: MeasureSystem {

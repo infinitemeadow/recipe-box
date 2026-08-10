@@ -9,6 +9,7 @@ enum UnitDisplay: String, CaseIterable {
 }
 
 struct ReadingView: View {
+    @EnvironmentObject var store: RecipeStore
     let recipe: Recipe
     var onBack: () -> Void
 
@@ -18,8 +19,11 @@ struct ReadingView: View {
     @State private var current = 0
     @State private var popoverIndex: Int?
     @State private var presentShare = false
+    @State private var localComments: [Comment]
+    @State private var newComment = ""
     @State private var activity: NSObjectProtocol?
     @FocusState private var focused: Bool
+    @FocusState private var commentFocused: Bool
 
     private let baseServings: Int
 
@@ -29,6 +33,7 @@ struct ReadingView: View {
         let base = max(recipe.servings ?? 1, 1)
         self.baseServings = base
         _servings = State(initialValue: base)
+        _localComments = State(initialValue: recipe.comments)
     }
 
     private var factor: Double {
@@ -176,6 +181,8 @@ struct ReadingView: View {
                         .padding(.top, 4)
                         .padding(.bottom, 8)
                     }
+
+                    commentsSection
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -325,11 +332,65 @@ struct ReadingView: View {
         )
     }
 
+    private var commentsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionLabel("Comments")
+            if localComments.isEmpty {
+                Text("No comments yet.")
+                    .font(.system(size: 14)).foregroundStyle(Theme.faint)
+                    .padding(.vertical, 6)
+            }
+            ForEach(Array(localComments.enumerated()), id: \.offset) { _, c in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(c.author ?? "Someone")
+                            .font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.amber)
+                        if let d = c.date {
+                            Text(d).font(.system(size: 12)).foregroundStyle(Theme.faint)
+                        }
+                    }
+                    Text(c.text).font(.system(size: 15)).foregroundStyle(Theme.text)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 8)
+                .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+            }
+            HStack(spacing: 8) {
+                TextField("Add a comment…", text: $newComment, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(Theme.text)
+                    .focused($commentFocused)
+                    .lineLimit(1...4)
+                    .onSubmit { addComment() }
+                    .padding(.horizontal, 12).padding(.vertical, 9)
+                    .background(Theme.surface)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line, lineWidth: 0.5))
+                Button("Post") { addComment() }
+                    .buttonStyle(PillButton(active: true))
+                    .disabled(newComment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+        }
+    }
+
+    private func addComment() {
+        let text = newComment.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        if let written = store.addComment(to: recipe.fileURL, text: text) {
+            localComments.append(written)
+            newComment = ""
+            commentFocused = false
+        }
+    }
+
     private func toggle(_ i: Int) {
         if done.contains(i) { done.remove(i) } else { done.insert(i) }
     }
 
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        if commentFocused { return .ignored }   // let the comment field handle typing
         let lastStep = max(recipe.steps.count - 1, 0)
         switch press.key {
         case .escape: onBack(); return .handled

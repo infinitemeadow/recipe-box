@@ -64,6 +64,7 @@ FORMAT RULES:
   list, so inline amounts would go stale. Refer to ingredients by name.
 - Temperatures in steps: write as `<number>°F` or `<number>°C` (whichever the
   recipe uses) so the app can convert them.
+- Do NOT include a `## Comments` section — that's reserved and managed by the app.
 - Keep the whole thing in ONE ```markdown code block so I can copy it to a file.
 ````
 

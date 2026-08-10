@@ -63,6 +63,9 @@ Regenerate the icon with `./scripts/make-icon.sh` (renders from `render_icon.swi
 - **Share** — the Share button (or `s`) in Cook Mode opens the native macOS share
   sheet for the recipe's `.md` file (AirDrop / Messages / Mail). The recipient gets
   a plain-text-readable file they can drop into their own library.
+- **Comments** — Cook Mode has a comments box; each is saved into the recipe's
+  `## Comments` section (attributed + dated), so comments sync between Macs and
+  travel with a shared `.md`.
 - **Recipe sync** — if the library folder is a git clone of the shared private
   repo, the app commits/pulls/pushes automatically (on launch + every 90s + a
   manual Sync button). Two-way sharing with no server; auth uses your own git

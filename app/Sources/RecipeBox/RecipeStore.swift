@@ -35,6 +35,35 @@ final class RecipeStore: ObservableObject {
         startSyncTimer()
     }
 
+    // Display name attached to comments this Mac writes.
+    var author: String {
+        if let saved = UserDefaults.standard.string(forKey: "authorName"), !saved.isEmpty { return saved }
+        let full = NSFullUserName()
+        return full.isEmpty ? "Me" : full
+    }
+
+    // Append a comment to the recipe's .md (creating the ## Comments section if
+    // needed), refresh, and push it. Returns the written comment for instant display.
+    @discardableResult
+    func addComment(to fileURL: URL, text: String) -> Comment? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              var content = try? String(contentsOf: fileURL, encoding: .utf8) else { return nil }
+        let date = Recipe.isoFormatter.string(from: Date())
+        let who = author
+        let line = "- **\(who)** · \(date): \(trimmed)"
+        if !content.hasSuffix("\n") { content += "\n" }
+        if content.range(of: "## Comments") != nil {
+            content += line + "\n"                     // Comments is the last section
+        } else {
+            content += "\n## Comments\n\n" + line + "\n"
+        }
+        guard (try? content.write(to: fileURL, atomically: true, encoding: .utf8)) != nil else { return nil }
+        reload()
+        syncNow()
+        return Comment(author: who, date: date, text: trimmed)
+    }
+
     // Commit/pull/push in the background, then refresh the list.
     func syncNow() {
         guard canSync, !isSyncing else { return }

@@ -35,6 +35,7 @@ enum MarkdownParser {
         var ingredients: [Ingredient] = []
         var steps: [String] = []
         var notesLines: [String] = []
+        var comments: [Comment] = []
         var titleFromBody: String?
 
         for raw in lines {
@@ -61,6 +62,10 @@ enum MarkdownParser {
                 if !s.isEmpty { steps.append(s) }
             case "notes":
                 notesLines.append(raw)
+            case "comments":
+                if line.hasPrefix("-") || line.hasPrefix("*") {
+                    comments.append(parseComment(line))
+                }
             default:
                 break
             }
@@ -85,8 +90,28 @@ enum MarkdownParser {
             tags: tags,
             ingredients: ingredients,
             steps: steps,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            comments: comments
         )
+    }
+
+    // Comment line format: "- **Author** · 2026-08-10: text"
+    private static let commentRe = try! NSRegularExpression(
+        pattern: #"^\*\*(.+?)\*\*\s*·\s*(.+?):\s*(.*)$"#
+    )
+
+    static func parseComment(_ line: String) -> Comment {
+        var s = line
+        if s.hasPrefix("-") || s.hasPrefix("*") { s.removeFirst() }
+        s = s.trimmingCharacters(in: .whitespaces)
+        let ns = s as NSString
+        if let m = commentRe.firstMatch(in: s, range: NSRange(location: 0, length: ns.length)),
+           m.numberOfRanges == 4 {
+            return Comment(author: ns.substring(with: m.range(at: 1)),
+                           date: ns.substring(with: m.range(at: 2)),
+                           text: ns.substring(with: m.range(at: 3)))
+        }
+        return Comment(author: nil, date: nil, text: s)
     }
 
     static func stripLeadingOrdinal(_ s: String) -> String {
