@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_NAME="RecipeBox"
 BUNDLE_ID="com.recipebox.app"
-VERSION="0.1.0"
+VERSION="${1:-0.1.0}"
 MIN_OS="14.0"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

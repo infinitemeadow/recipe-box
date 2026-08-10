@@ -15,6 +15,11 @@ struct RecipeBoxApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: true))
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Updater.shared.check(userInitiated: true) }
+            }
+        }
     }
 }
 
