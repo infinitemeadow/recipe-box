@@ -40,7 +40,10 @@ Regenerate the icon with `./scripts/make-icon.sh` (renders from `render_icon.swi
 - **Library table** — Recipe / Serves / Time / Added / Tags, **grouped by origin**
   (the `cuisine` field, or a recognized origin tag; "Other" last), newest-first
   within each group. Pinned group headers.
-- **Search + tag filter** — live.
+- **Search** — live, across title, cuisine, tags, ingredients, and notes.
+- **Filter** — a Filter button opens a popover of multi-select checkboxes grouped
+  into Cuisine and Tags; active filters show as removable pills. Scales cleanly as
+  the tag list grows (no more always-on tag strip).
 - **Keyboard:** `↑↓` or `j/k` navigate, `↵` open, `/` search, `n` / `⌘N` add.
 - **Paste-to-import** — the Add button (or `n`) opens a box; paste Claude's
   Markdown (fenced or not), it's saved as a `.md` and opened. Loose text gets a

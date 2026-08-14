@@ -13,7 +13,9 @@ struct LibraryView: View {
     var onOpen: (Recipe) -> Void
 
     @State private var query = ""
-    @State private var activeTag: String?
+    @State private var selectedTags: Set<String> = []
+    @State private var selectedCuisines: Set<String> = []
+    @State private var showFilters = false
     @State private var selected = 0
     @State private var showImport = false
     @FocusState private var focus: Field?
@@ -21,23 +23,42 @@ struct LibraryView: View {
     private enum Field { case list, search }
 
     private var filtered: [Recipe] {
-        store.recipes.filter { r in
-            let okTag = activeTag == nil || r.tags.contains(activeTag!)
-            let q = query.lowercased()
-            let okQ = q.isEmpty
-                || r.title.lowercased().contains(q)
-                || r.tags.contains { $0.lowercased().contains(q) }
-            return okTag && okQ
+        let q = query.lowercased()
+        return store.recipes.filter { r in
+            let okQ = q.isEmpty || matches(r, q)
+            let okCuisine = selectedCuisines.isEmpty || selectedCuisines.contains(r.origin)
+            let okTags = selectedTags.isEmpty || !selectedTags.isDisjoint(with: Set(r.tags))
+            return okQ && okCuisine && okTags
         }
     }
 
-    private var allTags: [String] {
-        var seen: [String] = []
-        for r in store.recipes {
-            for t in r.tags where !seen.contains(t) { seen.append(t) }
-        }
-        return seen
+    // Search across everything useful, not just the title.
+    private func matches(_ r: Recipe, _ q: String) -> Bool {
+        if r.title.lowercased().contains(q) { return true }
+        if r.origin.lowercased().contains(q) { return true }
+        if r.tags.contains(where: { $0.lowercased().contains(q) }) { return true }
+        if r.ingredients.contains(where: { $0.name.lowercased().contains(q) }) { return true }
+        if let notes = r.notes, notes.lowercased().contains(q) { return true }
+        return false
     }
+
+    private var allTags: [String] {
+        var set = Set<String>()
+        for r in store.recipes { for t in r.tags { set.insert(t) } }
+        return set.sorted()
+    }
+
+    private var allCuisines: [String] {
+        var set = Set<String>()
+        for r in store.recipes { set.insert(r.origin) }
+        return set.sorted { a, b in
+            if a == "Other" { return false }
+            if b == "Other" { return true }
+            return a.localizedCaseInsensitiveCompare(b) == .orderedAscending
+        }
+    }
+
+    private var activeFilterCount: Int { selectedTags.count + selectedCuisines.count }
 
     // Recipes grouped by origin: groups alphabetical ("Other" last), newest-first
     // within each group.
@@ -67,7 +88,8 @@ struct LibraryView: View {
         .background(Theme.bg)
         .onAppear { focus = .list; clamp() }
         .onChange(of: query) { _, _ in selected = 0 }
-        .onChange(of: activeTag) { _, _ in selected = 0 }
+        .onChange(of: selectedTags) { _, _ in selected = 0 }
+        .onChange(of: selectedCuisines) { _, _ in selected = 0 }
         .sheet(isPresented: $showImport) {
             ImportView(directory: store.directory) { url in
                 showImport = false
@@ -82,21 +104,42 @@ struct LibraryView: View {
     // MARK: search + tags
 
     private var header: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             HStack(spacing: 10) {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass").foregroundStyle(Theme.faint)
-                    TextField("Search recipes…", text: $query)
+                    TextField("Search recipes, ingredients, cuisine…", text: $query)
                         .textFieldStyle(.plain)
                         .foregroundStyle(Theme.text)
                         .focused($focus, equals: .search)
                         .onSubmit { focus = .list }
+                    if !query.isEmpty {
+                        Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain).foregroundStyle(Theme.faint)
+                    }
                 }
                 .padding(.horizontal, 12)
                 .frame(height: 38)
                 .background(Theme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.line, lineWidth: 0.5))
+
+                Button { showFilters.toggle() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                        Text("Filter")
+                        if activeFilterCount > 0 {
+                            Text("\(activeFilterCount)")
+                                .font(.system(size: 11, weight: .medium))
+                                .padding(.horizontal, 6).padding(.vertical, 1)
+                                .background(Theme.amber.opacity(0.22))
+                                .foregroundStyle(Theme.amber)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+                .buttonStyle(PillButton(active: activeFilterCount > 0 || showFilters))
+                .popover(isPresented: $showFilters, arrowEdge: .bottom) { filterPopover }
 
                 Button { showImport = true } label: {
                     Label("Add", systemImage: "plus")
@@ -105,27 +148,102 @@ struct LibraryView: View {
                 .keyboardShortcut("n", modifiers: .command)
             }
 
-            if !allTags.isEmpty {
+            if activeFilterCount > 0 {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 7) {
-                        ForEach(allTags, id: \.self) { tag in
-                            let on = activeTag == tag
-                            Text(tag)
-                                .font(.system(size: 12))
-                                .foregroundStyle(on ? Theme.amber : Theme.muted)
-                                .padding(.horizontal, 11)
-                                .padding(.vertical, 5)
-                                .background(on ? Theme.amber.opacity(0.14) : Color.clear)
-                                .clipShape(Capsule())
-                                .overlay(Capsule().stroke(on ? Theme.amberDim : Theme.line, lineWidth: 0.5))
-                                .onTapGesture { activeTag = on ? nil : tag }
+                        ForEach(allCuisines.filter { selectedCuisines.contains($0) }, id: \.self) { c in
+                            removablePill(c) { selectedCuisines.remove(c) }
                         }
+                        ForEach(allTags.filter { selectedTags.contains($0) }, id: \.self) { t in
+                            removablePill(t) { selectedTags.remove(t) }
+                        }
+                        Button("Clear all") { selectedTags = []; selectedCuisines = [] }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.faint)
+                            .padding(.leading, 4)
                     }
                     .padding(.horizontal, 1)
                 }
             }
         }
         .padding(16)
+    }
+
+    private func removablePill(_ label: String, remove: @escaping () -> Void) -> some View {
+        Button(action: remove) {
+            HStack(spacing: 5) {
+                Text(label).font(.system(size: 12))
+                Image(systemName: "xmark").font(.system(size: 9))
+            }
+            .foregroundStyle(Theme.amber)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(Theme.amber.opacity(0.14))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(Theme.amberDim, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var filterPopover: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Filters").font(.system(size: 14, weight: .medium)).foregroundStyle(Theme.text)
+                Spacer()
+                if activeFilterCount > 0 {
+                    Button("Clear") { selectedTags = []; selectedCuisines = [] }
+                        .buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(Theme.amber)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !allCuisines.isEmpty {
+                        filterGroupTitle("Cuisine")
+                        ForEach(allCuisines, id: \.self) { c in
+                            filterRow(c, on: selectedCuisines.contains(c)) { toggle(&selectedCuisines, c) }
+                        }
+                    }
+                    if !allTags.isEmpty {
+                        filterGroupTitle("Tags")
+                        ForEach(allTags, id: \.self) { t in
+                            filterRow(t, on: selectedTags.contains(t)) { toggle(&selectedTags, t) }
+                        }
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+            .frame(maxHeight: 340)
+        }
+        .frame(width: 240)
+        .background(Theme.bg)
+    }
+
+    private func filterGroupTitle(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.system(size: 11)).tracking(0.7).foregroundStyle(Theme.faint)
+            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 4)
+    }
+
+    private func filterRow(_ label: String, on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: on ? "checkmark.square.fill" : "square")
+                    .font(.system(size: 14))
+                    .foregroundStyle(on ? Theme.amber : Theme.faint)
+                Text(label).font(.system(size: 13)).foregroundStyle(Theme.text)
+                Spacer()
+            }
+            .contentShape(Rectangle())
+            .padding(.horizontal, 14).padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggle(_ set: inout Set<String>, _ v: String) {
+        if set.contains(v) { set.remove(v) } else { set.insert(v) }
     }
 
     private var columnsHeader: some View {
