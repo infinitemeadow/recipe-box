@@ -11,10 +11,11 @@ MIN_OS="14.0"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "› Building release binary…"
-swift build -c release
+echo "› Building universal release binary (arm64 + x86_64)…"
+ARCHS=(--arch arm64 --arch x86_64)
+swift build -c release "${ARCHS[@]}"
 
-BIN="$(swift build -c release --show-bin-path)/$APP_NAME"
+BIN="$(swift build -c release "${ARCHS[@]}" --show-bin-path)/$APP_NAME"
 DIST="$ROOT/dist"
 APP="$DIST/$APP_NAME.app"
 
