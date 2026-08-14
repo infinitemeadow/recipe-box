@@ -42,6 +42,15 @@ final class RecipeStore: ObservableObject {
         return full.isEmpty ? "Me" : full
     }
 
+    // Overwrite a recipe's .md with edited text, refresh, and push.
+    @discardableResult
+    func saveRecipeText(_ fileURL: URL, text: String) -> Bool {
+        guard (try? text.write(to: fileURL, atomically: true, encoding: .utf8)) != nil else { return false }
+        reload()
+        syncNow()
+        return true
+    }
+
     // Append a comment to the recipe's .md (creating the ## Comments section if
     // needed), refresh, and push it. Returns the written comment for instant display.
     @discardableResult

@@ -54,8 +54,9 @@ Regenerate the icon with `./scripts/make-icon.sh` (renders from `render_icon.swi
 - **Unit selector** — a radio group (Original / Metric / US) picks how quantities
   display; `u` cycles it. Converts only within a dimension (ml↔cup, g↔oz) and rolls
   small units up (16 tbsp → 1 cup); weight↔volume is never faked.
-- **Edit the source** — the pencil button (or `e`) opens the recipe's `.md` in your
-  default editor; saving refreshes the app live (FSEvents). Files are the truth.
+- **Edit the source** — the pencil button (or `e`) opens a built-in Markdown editor
+  on the recipe's `.md`; Save writes the file, refreshes the view in place, and
+  syncs. (No external editor needed.)
 - **Per-quantity popover** — tap any amount to see it in every unit of its
   dimension, scaled to the current serving count.
 - **Source link** — if a recipe's frontmatter has a `source_url`, Cook Mode shows a

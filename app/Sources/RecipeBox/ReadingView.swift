@@ -10,9 +10,9 @@ enum UnitDisplay: String, CaseIterable {
 
 struct ReadingView: View {
     @EnvironmentObject var store: RecipeStore
-    let recipe: Recipe
     var onBack: () -> Void
 
+    @State private var recipe: Recipe
     @State private var servings: Int
     @State private var unitMode: UnitDisplay = .original
     @State private var done: Set<Int> = []
@@ -21,6 +21,7 @@ struct ReadingView: View {
     @State private var presentShare = false
     @State private var localComments: [Comment]
     @State private var newComment = ""
+    @State private var showEditor = false
     @State private var activity: NSObjectProtocol?
     @FocusState private var focused: Bool
     @FocusState private var commentFocused: Bool
@@ -28,10 +29,10 @@ struct ReadingView: View {
     private let baseServings: Int
 
     init(recipe: Recipe, onBack: @escaping () -> Void) {
-        self.recipe = recipe
         self.onBack = onBack
         let base = max(recipe.servings ?? 1, 1)
         self.baseServings = base
+        _recipe = State(initialValue: recipe)
         _servings = State(initialValue: base)
         _localComments = State(initialValue: recipe.comments)
     }
@@ -61,8 +62,13 @@ struct ReadingView: View {
         unitMode = all[(idx + 1) % all.count]
     }
 
-    private func openInEditor() {
-        NSWorkspace.shared.open(recipe.fileURL)
+    private func saveEdited(_ text: String) {
+        store.saveRecipeText(recipe.fileURL, text: text)
+        let updated = MarkdownParser.parse(text, fileURL: recipe.fileURL, fileDate: recipe.addedDate)
+        recipe = updated
+        localComments = updated.comments
+        current = min(current, max(updated.steps.count - 1, 0))
+        showEditor = false
     }
 
     private func isConvertible(_ ing: Ingredient) -> Bool {
@@ -203,6 +209,14 @@ struct ReadingView: View {
         .onDisappear {
             if let a = activity { ProcessInfo.processInfo.endActivity(a); activity = nil }
         }
+        .sheet(isPresented: $showEditor) {
+            EditRecipeView(
+                title: recipe.title,
+                text: (try? String(contentsOf: recipe.fileURL, encoding: .utf8)) ?? "",
+                onSave: { saveEdited($0) },
+                onCancel: { showEditor = false }
+            )
+        }
     }
 
     private var toolbar: some View {
@@ -212,11 +226,11 @@ struct ReadingView: View {
             }
             .buttonStyle(PillButton())
 
-            Button { openInEditor() } label: {
+            Button { showEditor = true } label: {
                 Image(systemName: "pencil")
             }
             .buttonStyle(PillButton())
-            .help("Edit the .md file (e)")
+            .help("Edit the recipe (e)")
 
             Button { presentShare = true } label: {
                 Image(systemName: "square.and.arrow.up")
@@ -400,7 +414,7 @@ struct ReadingView: View {
         switch press.characters {
         case "x": toggle(current); return .handled
         case "u": cycleUnits(); return .handled
-        case "e": openInEditor(); return .handled
+        case "e": showEditor = true; return .handled
         case "s": presentShare = true; return .handled
         case "+", "=": servings += 1; return .handled
         case "-": if servings > 1 { servings -= 1 }; return .handled
