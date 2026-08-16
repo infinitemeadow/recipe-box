@@ -26,24 +26,53 @@ enum GitSync {
     }
 
     // Commit local edits → rebase on remote → push. Returns a short status string.
+    // Distinguishes real merge conflicts from auth/network failures (which must NOT
+    // be reported as conflicts).
     static func sync(_ dir: URL) -> String {
         guard isRepo(dir) else { return "" }
 
+        // 1) Commit real local changes.
         git(["add", "-A"], in: dir)
-        let hasLocalChanges = !git(["diff", "--cached", "--quiet"], in: dir).ok
-        if hasLocalChanges {
+        if !git(["diff", "--cached", "--quiet"], in: dir).ok {
             git(["-c", "user.name=Recipe Box",
                  "-c", "user.email=recipebox@users.noreply.github.com",
                  "commit", "-m", "Update recipes"], in: dir)
         }
 
-        let pull = git(["pull", "--rebase"], in: dir)
-        if !pull.ok {
+        // 2) Fetch — auth/network problems surface here, separate from conflicts.
+        let fetch = git(["fetch", "origin"], in: dir)
+        if !fetch.ok { return connectionMessage(fetch.out) }
+
+        // 3) Replay local commits on top of the remote.
+        let branch = git(["rev-parse", "--abbrev-ref", "HEAD"], in: dir)
+            .out.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rebase = git(["rebase", "origin/\(branch)"], in: dir)
+        if !rebase.ok {
+            let conflicted = git(["diff", "--name-only", "--diff-filter=U"], in: dir).out
+                .split(separator: "\n").map { ($0 as NSString).lastPathComponent }
             git(["rebase", "--abort"], in: dir)   // never leave a half-finished rebase
-            return "Sync conflict — same recipe edited on both Macs"
+            if !conflicted.isEmpty {
+                return "Conflict on \(conflicted.joined(separator: ", ")) — edited on both Macs"
+            }
+            return "Couldn't merge remote changes — try Sync again"
         }
 
+        // 4) Push.
         let push = git(["push"], in: dir)
-        return push.ok ? "Synced" : "Sync issue — check your connection / sign-in"
+        return push.ok ? "Synced" : connectionMessage(push.out)
+    }
+
+    private static func connectionMessage(_ output: String) -> String {
+        let o = output.lowercased()
+        if o.contains("could not read username") || o.contains("authentication failed")
+            || o.contains("permission") || o.contains("denied")
+            || o.contains("terminal prompts disabled") || o.contains("device not configured") {
+            return "Sign-in needed — run: gh auth login"
+        }
+        if o.contains("could not resolve host") || o.contains("connection")
+            || o.contains("network") || o.contains("timed out") || o.contains("unable to access") {
+            return "Offline — will sync when reconnected"
+        }
+        return "Sync issue — will retry"
     }
 }

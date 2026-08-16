@@ -23,6 +23,9 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+# Use the gh token for git auth so background sync never needs a keychain prompt.
+gh auth setup-git >/dev/null 2>&1 || true
+
 # 2) Shared recipes (private repo) → ~/Recipes
 if [ -d "$RECIPES_DIR/.git" ]; then
   echo "• Recipes already set up — pulling latest…"
