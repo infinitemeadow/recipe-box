@@ -17,6 +17,7 @@ struct LibraryView: View {
     @State private var selectedCuisines: Set<String> = []
     @State private var showFilters = false
     @State private var selected = 0
+    @State private var scrollOnSelect = false   // only auto-scroll for keyboard nav
     @State private var showImport = false
     @FocusState private var focus: Field?
 
@@ -296,7 +297,7 @@ struct LibraryView: View {
                                     row(idx: idx, r: r)
                                         .id(idx)
                                         .contentShape(Rectangle())
-                                        .onTapGesture { selected = idx; focus = .list }
+                                        .onTapGesture { scrollOnSelect = false; selected = idx; focus = .list }
                                         .simultaneousGesture(TapGesture(count: 2).onEnded { onOpen(r) })
                                 }
                             } header: {
@@ -306,7 +307,9 @@ struct LibraryView: View {
                     }
                 }
                 .onChange(of: selected) { _, v in
+                    guard scrollOnSelect else { return }
                     withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(v, anchor: .center) }
+                    scrollOnSelect = false
                 }
             }
             .focusable()
@@ -432,16 +435,16 @@ struct LibraryView: View {
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
         let rows = flat
         switch press.key {
-        case .upArrow:   selected = max(0, selected - 1); return .handled
-        case .downArrow: selected = min(rows.count - 1, selected + 1); return .handled
+        case .upArrow:   scrollOnSelect = true; selected = max(0, selected - 1); return .handled
+        case .downArrow: scrollOnSelect = true; selected = min(rows.count - 1, selected + 1); return .handled
         case .return:
             if rows.indices.contains(selected) { onOpen(rows[selected]) }
             return .handled
         default: break
         }
         switch press.characters {
-        case "k": selected = max(0, selected - 1); return .handled
-        case "j": selected = min(rows.count - 1, selected + 1); return .handled
+        case "k": scrollOnSelect = true; selected = max(0, selected - 1); return .handled
+        case "j": scrollOnSelect = true; selected = min(rows.count - 1, selected + 1); return .handled
         case "/": focus = .search; return .handled
         case "n": showImport = true; return .handled
         default: return .ignored
