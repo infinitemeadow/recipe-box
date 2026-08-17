@@ -37,11 +37,17 @@ enum MarkdownParser {
         var notesLines: [String] = []
         var comments: [Comment] = []
         var titleFromBody: String?
+        var currentGroup: String?
 
         for raw in lines {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("## ") {
                 section = line.dropFirst(3).trimmingCharacters(in: .whitespaces).lowercased()
+                currentGroup = nil     // subsections don't cross section boundaries
+                continue
+            }
+            if line.hasPrefix("### ") {
+                currentGroup = String(line.dropFirst(4)).trimmingCharacters(in: .whitespaces)
                 continue
             }
             if line.hasPrefix("# "), titleFromBody == nil {
@@ -55,7 +61,9 @@ enum MarkdownParser {
             switch section {
             case "ingredients":
                 if line.hasPrefix("-") || line.hasPrefix("*") {
-                    ingredients.append(parseIngredient(line))
+                    var ing = parseIngredient(line)
+                    ing.group = currentGroup
+                    ingredients.append(ing)
                 }
             case "steps":
                 let s = stripLeadingOrdinal(line)

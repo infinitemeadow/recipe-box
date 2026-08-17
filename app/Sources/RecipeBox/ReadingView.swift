@@ -148,15 +148,25 @@ struct ReadingView: View {
 
                     sectionLabel("Ingredients")
                     ForEach(Array(recipe.ingredients.enumerated()), id: \.offset) { idx, ing in
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            quantityView(idx: idx, ing: ing)
-                            Text(ing.name.isEmpty ? ing.raw : ing.name)
-                                .font(.system(size: 17))
-                                .foregroundStyle(Theme.text)
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 0) {
+                            if let g = ing.group,
+                               g != (idx > 0 ? recipe.ingredients[idx - 1].group : nil) {
+                                Text(g)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(Theme.amber)
+                                    .padding(.top, idx > 0 ? 12 : 6)
+                                    .padding(.bottom, 2)
+                            }
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                quantityView(idx: idx, ing: ing)
+                                Text(ing.name.isEmpty ? ing.raw : ing.name)
+                                    .font(.system(size: 17))
+                                    .foregroundStyle(Theme.text)
+                                Spacer()
+                            }
+                            .padding(.vertical, 9)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
                         }
-                        .padding(.vertical, 9)
-                        .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 0.5) }
                     }
 
                     sectionLabel("Steps")

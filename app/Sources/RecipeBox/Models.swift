@@ -5,6 +5,7 @@ struct Ingredient: Hashable {
     var unit: String?       // canonical unit ("g", "tbsp", …) or nil
     var name: String        // remainder of the line
     var raw: String         // original text, used when nothing parses
+    var group: String?      // optional "### Subsection" this ingredient sits under
 }
 
 struct Comment: Hashable {

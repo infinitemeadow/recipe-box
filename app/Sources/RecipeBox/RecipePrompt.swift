@@ -40,6 +40,7 @@ enum RecipePrompt {
     - Quantities: plain numbers, decimals, or simple fractions (`1.5`, `1/2`, `1 1/2`). No ranges in the ingredient line. No unicode fractions (½) — write `1/2`.
     - Steps: ordered `1.` list, one action each, imperative voice. Do NOT repeat ingredient quantities inside steps — refer to ingredients by name.
     - Temperatures in steps: write as `<number>°F` or `<number>°C`.
+    - Group ingredients that are prepared separately (a sauce, marinade, batter, or a distinct component) under a `### Subsection` header inside ## Ingredients. Main ingredients go before any subsection. Use these only when it genuinely helps.
     - Do NOT include a `## Comments` section — that's reserved and managed by the app.
     - Keep the whole thing in ONE markdown code block.
     """

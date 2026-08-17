@@ -62,6 +62,9 @@ Regenerate the icon with `./scripts/make-icon.sh` (renders from `render_icon.swi
   syncs. (No external editor needed.)
 - **Per-quantity popover** — tap any amount to see it in every unit of its
   dimension, scaled to the current serving count.
+- **Ingredient sub-sections** — `### Subsection` headers inside `## Ingredients`
+  (e.g. a sauce or marinade) render as labeled groups in Cook Mode. Scaling and
+  unit conversion still apply per-ingredient across all groups.
 - **Source link** — if a recipe's frontmatter has a `source_url`, Cook Mode shows a
   clickable "Source" link to the original page. Blank/omitted when there's no URL.
 - **Share** — the Share button (or `s`) in Cook Mode opens the native macOS share
